@@ -102,27 +102,6 @@ open Coverwall.xcodeproj
 | `CoverwallSaver` | The `.saver` bundle |
 | `CoverwallPreview` | Dev harness that runs the mosaic in a window |
 
-To use your own Spotify credentials, create an app at
-[developer.spotify.com](https://developer.spotify.com/dashboard) with
-redirect URI `coverwall://callback` and put its Client ID in
-`CoverwallShared/Sources/CoverwallShared/SpotifyConfig.swift`.
-
-## Releasing
-
-One-time setup: `xcrun notarytool store-credentials coverwall-notary` with an
-App Store Connect API key, then:
-
-```sh
-export CW_TEAM_ID=XXXXXXXXXX
-export CW_SIGN_IDENTITY="Developer ID Application: Your Name (XXXXXXXXXX)"
-export CW_NOTARY_PROFILE=coverwall-notary
-./scripts/publish.sh 1.0.0
-```
-
-`publish.sh` builds a signed, notarized DMG, creates the GitHub release, and
-bumps the [Homebrew tap](https://github.com/juettner/homebrew-coverwall).
-(`scripts/release.sh` does just the DMG, no publishing.)
-
 ## Acknowledgements
 
 Album artwork is fetched from Spotify and displayed with artist and album
