@@ -12,7 +12,7 @@ struct CoverwallApp: App {
             Divider()
             Button("Refresh Now") { Task { await model.refreshNow() } }
                 .disabled(!model.isConnected)
-            SettingsLink { Text("Settings…") }
+            SettingsMenuButton()
             if model.isConnected {
                 Button("Disconnect Spotify") { model.disconnect() }
             } else {
@@ -24,6 +24,19 @@ struct CoverwallApp: App {
 
         Settings {
             SettingsView(model: model)
+        }
+    }
+}
+
+// SettingsLink alone doesn't activate an LSUIElement app, so the Settings
+// window opens behind every other window with no Dock/Cmd-Tab way to find it.
+private struct SettingsMenuButton: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button("Settings…") {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            openSettings()
         }
     }
 }
