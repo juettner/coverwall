@@ -2,6 +2,9 @@ import Foundation
 
 public enum ArtSource: String, Codable, CaseIterable {
     case recentlyPlayed, topTracks, likedSongs
+    /// Pre-login curated chart snapshot; never user-selectable, appears only
+    /// as a Manifest.source written by the starter-art path.
+    case starter
 }
 
 public enum TopTracksRange: String, Codable, CaseIterable {

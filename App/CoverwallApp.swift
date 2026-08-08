@@ -107,7 +107,6 @@ final class AppModel: ObservableObject {
     }
 
     func refreshNow() async {
-        guard isConnected else { return }
         guard isRefreshing == false else { return }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -115,11 +114,13 @@ final class AppModel: ObservableObject {
         switch await coordinator.refresh() {
         case .updated(let count):
             statusLine = "\(count) albums · updated \(Date().formatted(date: .omitted, time: .shortened))"
+        case .starter(let count):
+            statusLine = "\(count) covers from the global charts — connect Spotify to make it yours"
         case .notLoggedIn:
             isConnected = false
             statusLine = "Not connected"
         case .failed:
-            statusLine = "Refresh failed — will retry"
+            statusLine = isConnected ? "Refresh failed — will retry" : "Not connected"
         }
     }
 }

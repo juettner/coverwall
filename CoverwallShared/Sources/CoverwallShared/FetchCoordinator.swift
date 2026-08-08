@@ -21,6 +21,8 @@ extension TokenStore: TokenStoring {}
 public struct FetchCoordinator {
     public enum RefreshOutcome: Equatable {
         case updated(albumCount: Int)
+        /// Not logged in, but the curated starter chart is on display.
+        case starter(albumCount: Int)
         case notLoggedIn
         case failed(String)
     }
@@ -30,18 +32,21 @@ public struct FetchCoordinator {
     private let cache: CacheStore
     private let manifests: ManifestStore
     private let settings: SharedSettings
+    private let starter: StarterArtFetching
 
     public init(client: SpotifyFetching, tokens: TokenStoring, cache: CacheStore,
-                manifests: ManifestStore, settings: SharedSettings) {
+                manifests: ManifestStore, settings: SharedSettings,
+                starter: StarterArtFetching = StarterArtClient()) {
         self.client = client
         self.tokens = tokens
         self.cache = cache
         self.manifests = manifests
         self.settings = settings
+        self.starter = starter
     }
 
     public func refresh() async -> RefreshOutcome {
-        guard var tokenSet = tokens.load() else { return .notLoggedIn }
+        guard var tokenSet = tokens.load() else { return await refreshStarterIfNeeded() }
         do {
             if tokenSet.isExpired {
                 do {
@@ -62,6 +67,9 @@ public struct FetchCoordinator {
                                                   accessToken: tokenSet.accessToken)
             case .likedSongs:
                 refs = try await client.likedSongs(accessToken: tokenSet.accessToken, pages: 4)
+            case .starter:
+                // Never a user-selectable setting; treat defensively as the default.
+                refs = try await client.recentlyPlayed(accessToken: tokenSet.accessToken)
             }
 
             var albums: [AlbumArt] = []
@@ -85,5 +93,38 @@ public struct FetchCoordinator {
         } catch {
             return .failed(String(describing: error))
         }
+    }
+
+    /// Pre-login: fill the screen with the baked-in global chart snapshot so
+    /// a fresh install never shows the gradient placeholder. Runs only when
+    /// no manifest exists at all — a logged-out user keeps whatever art they
+    /// last had, and a logged-in refresh replaces starter art wholesale.
+    private func refreshStarterIfNeeded() async -> RefreshOutcome {
+        guard manifests.read() == nil else { return .notLoggedIn }
+
+        var albums: [AlbumArt] = []
+        var seenCovers = Set<URL>()
+        for track in StarterSet.tracks {
+            guard let coverURL = try? await starter.coverURL(forTrackID: track.trackID),
+                  seenCovers.insert(coverURL).inserted else { continue }
+            let albumID = "starter-\(track.trackID)"
+            if !cache.contains(albumID: albumID) {
+                guard let data = try? await starter.downloadImage(at: coverURL) else { continue }
+                guard (try? cache.store(data, albumID: albumID)) != nil else { continue }
+            }
+            albums.append(AlbumArt(albumID: albumID, title: track.title,
+                                   artist: track.artist,
+                                   imageFilename: cache.filename(forAlbumID: albumID),
+                                   addedAt: Date()))
+        }
+
+        guard !albums.isEmpty else { return .notLoggedIn }
+        do {
+            try manifests.write(Manifest(source: .starter, updatedAt: Date(), albums: albums))
+        } catch {
+            return .notLoggedIn
+        }
+        cache.prune(keeping: albums.map(\.albumID))
+        return .starter(albumCount: albums.count)
     }
 }

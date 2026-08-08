@@ -29,6 +29,19 @@ private final class StubTokens: TokenStoring {
     func delete() { stored = nil }
 }
 
+private final class StubStarter: StarterArtFetching {
+    /// trackID -> cover URL; unlisted IDs throw. Identical URLs simulate
+    /// tracks sharing one album.
+    var covers: [String: URL] = [:]
+
+    func coverURL(forTrackID id: String) async throws -> URL {
+        guard let url = covers[id] else { throw SpotifyError.http(404) }
+        return url
+    }
+
+    func downloadImage(at url: URL) async throws -> Data { Data([0xAB]) }
+}
+
 final class FetchCoordinatorTests: XCTestCase {
     private var dir: URL!
     private var cacheDir: URL!
@@ -36,6 +49,7 @@ final class FetchCoordinatorTests: XCTestCase {
     private var tokens: StubTokens!
     private var coordinator: FetchCoordinator!
     private var manifests: ManifestStore!
+    private var starter: StubStarter!
 
     override func setUp() {
         super.setUp()
@@ -49,10 +63,12 @@ final class FetchCoordinatorTests: XCTestCase {
         manifests = ManifestStore(url: dir.appendingPathComponent("manifest.json"))
         let suite = UserDefaults(suiteName: "test.coverwall.fetch")!
         suite.removePersistentDomain(forName: "test.coverwall.fetch")
+        starter = StubStarter()
         coordinator = FetchCoordinator(client: client, tokens: tokens,
                                        cache: CacheStore(directory: cacheDir),
                                        manifests: manifests,
-                                       settings: SharedSettings(defaults: suite))
+                                       settings: SharedSettings(defaults: suite),
+                                       starter: starter)
     }
 
     override func tearDown() {
@@ -137,5 +153,36 @@ final class FetchCoordinatorTests: XCTestCase {
         XCTAssertFalse(cache.contains(albumID: "a1"))
         XCTAssertTrue(cache.contains(albumID: "a2"))
         XCTAssertTrue(cache.contains(albumID: "a3"))
+    }
+
+    func testNotLoggedInWritesStarterManifestDedupedByCover() async {
+        starter.covers = [
+            StarterSet.tracks[0].trackID: URL(string: "https://img/cover-a")!,
+            StarterSet.tracks[1].trackID: URL(string: "https://img/cover-b")!,
+            StarterSet.tracks[2].trackID: URL(string: "https://img/cover-a")!,  // same album as [0]
+        ]
+        let outcome = await coordinator.refresh()
+        XCTAssertEqual(outcome, .starter(albumCount: 2))
+        let manifest = manifests.read()
+        XCTAssertEqual(manifest?.source, .starter)
+        XCTAssertEqual(manifest?.albums.count, 2)
+        XCTAssertEqual(manifest?.albums.first?.artist, StarterSet.tracks[0].artist)
+    }
+
+    func testStarterDoesNotOverwriteExistingManifest() async {
+        try? manifests.write(Manifest(source: .recentlyPlayed, updatedAt: Date(),
+                                      albums: [AlbumArt(albumID: "real", title: "T", artist: "A",
+                                                        imageFilename: "real.jpg", addedAt: Date())]))
+        starter.covers = [StarterSet.tracks[0].trackID: URL(string: "https://img/cover-a")!]
+        let outcome = await coordinator.refresh()
+        XCTAssertEqual(outcome, .notLoggedIn)
+        XCTAssertEqual(manifests.read()?.source, .recentlyPlayed)
+    }
+
+    func testStarterFailureFallsBackToNotLoggedIn() async {
+        // StubStarter with no covers: every oEmbed lookup throws.
+        let outcome = await coordinator.refresh()
+        XCTAssertEqual(outcome, .notLoggedIn)
+        XCTAssertNil(manifests.read())
     }
 }
