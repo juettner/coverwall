@@ -67,24 +67,7 @@ public final class CoverwallSaverView: ScreenSaverView {
     }
 
     public override var hasConfigureSheet: Bool { true }
-    public override var configureSheet: NSWindow? {
-        sheetDiag("configureSheet requested: visible=\(sheet.window.isVisible) hasSheetParent=\(sheet.window.sheetParent != nil)")
-        return sheet.window
-    }
-}
-
-// TEMPORARY DIAGNOSTICS — remove after the options-button investigation.
-func sheetDiag(_ message: String) {
-    let dest = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("coverwall-sheet-diag.txt")
-    let line = "\(Date()) [\(ProcessInfo.processInfo.processName)] \(message)\n"
-    if let handle = try? FileHandle(forWritingTo: dest) {
-        handle.seekToEndOfFile()
-        handle.write(Data(line.utf8))
-        try? handle.close()
-    } else {
-        try? Data(line.utf8).write(to: dest)
-    }
+    public override var configureSheet: NSWindow? { sheet.window }
 }
 
 final class ConfigSheetController {
@@ -131,15 +114,13 @@ final class ConfigSheetController {
     }
 
     @objc private func openHelper() {
-        if let url = NSWorkspace.shared
-            .urlForApplication(withBundleIdentifier: "com.chadjuettner.coverwall") {
-            NSWorkspace.shared.openApplication(at: url,
-                configuration: NSWorkspace.OpenConfiguration())
-        }
+        // Deep link: launches the helper if needed AND opens its Settings
+        // window. Launching the app alone shows nothing — it's a faceless
+        // menu-bar app.
+        NSWorkspace.shared.open(URL(string: "coverwall://settings")!)
     }
 
     @objc private func done() {
-        sheetDiag("done: hasSheetParent=\(window.sheetParent != nil) visible=\(window.isVisible)")
         if let title = densityPopup.titleOfSelectedItem,
            let density = TileDensity(rawValue: title) {
             settings.tileDensity = density

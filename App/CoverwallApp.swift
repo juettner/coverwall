@@ -46,6 +46,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SaverInstaller.installIfNeeded()
         AppModel.shared.startScheduler()
         AppModel.shared.registerLoginItem()
+        registerURLHandler()
+    }
+
+    // coverwall://settings — sent by the saver's "Open Coverwall Settings"
+    // button. SwiftUI's lifecycle swallows URL opens (they only reach
+    // onOpenURL view modifiers, and none of our views are alive when the
+    // menu bar is closed), so claim the kAEGetURL Apple Event directly;
+    // registering in didFinishLaunching wins over SwiftUI's handler.
+    // (The OAuth coverwall://callback never reaches here; the auth session
+    // intercepts it.)
+    private func registerURLHandler() {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL))
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor,
+                                    withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let raw = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: raw), url.host == "settings" else { return }
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            EnvironmentValues().openSettings()
+        }
     }
 }
 
