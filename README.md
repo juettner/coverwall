@@ -26,3 +26,14 @@ Output: `dist/Coverwall.dmg` (signed, notarized, stapled).
 
 Distribution checklist: Spotify extended-quota review approved (users beyond
 the 25-user dev allowlist), DMG smoke-tested on a clean machine.
+
+## Homebrew
+
+Once a release is published:
+
+    brew install juettner/coverwall/coverwall
+
+Publishing a release (builds, signs, notarizes, creates the GitHub release,
+and bumps the [tap](https://github.com/juettner/homebrew-coverwall)):
+
+    ./scripts/publish.sh 1.0.0
