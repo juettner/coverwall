@@ -23,7 +23,7 @@ public enum TileDensity: String, Codable, CaseIterable {
         switch self {
         case .small: 120
         case .medium: 200
-        case .large: 320
+        case .large: 280
         }
     }
 }

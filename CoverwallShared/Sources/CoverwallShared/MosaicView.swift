@@ -80,7 +80,8 @@ public final class MosaicView: NSView {
 
         let (columns, rows) = MosaicGrid.dimensions(for: bounds.size, density: density)
         let side = bounds.width / CGFloat(columns)
-        let ids = images.keys.sorted()
+        let assigned = MosaicAssignment.assignments(albumIDs: images.keys.shuffled(),
+                                                    cellCount: columns * rows)
 
         for row in 0..<rows {
             for col in 0..<columns {
@@ -95,7 +96,7 @@ public final class MosaicView: NSView {
                     tile.backgroundColor = placeholderColors[(row + col) % placeholderColors.count].cgColor
                     tileAlbumIDs.append("")
                 } else {
-                    let id = ids[(row * columns + col) % ids.count]
+                    let id = assigned[row * columns + col]
                     tile.contents = images[id]
                     tileAlbumIDs.append(id)
                 }
@@ -119,23 +120,44 @@ public final class MosaicView: NSView {
     }
 
     public func flipRandomTile() {
-        guard !isPlaceholder, images.count > 1, !tileLayers.isEmpty else { return }
-        let index = Int.random(in: 0..<tileLayers.count)
-        let currentID = tileAlbumIDs[index]
-        guard let newID = images.keys.filter({ $0 != currentID }).randomElement(),
-              let newImage = images[newID] else { return }
+        guard !isPlaceholder, !tileLayers.isEmpty else { return }
+        switch MosaicAssignment.flipMove(allAlbums: Set(images.keys),
+                                         displayed: tileAlbumIDs) {
+        case .none:
+            return
+        case .flip(let candidates):
+            let index = Int.random(in: 0..<tileLayers.count)
+            guard let newID = candidates.randomElement(),
+                  let newImage = images[newID] else { return }
+            crossfade(tileIndex: index, to: newID, image: newImage)
+            if showLabels, let album = albums.first(where: { $0.albumID == newID }) {
+                showLabel("\(album.artist) — \(album.title)")
+            }
+        case .swapTiles:
+            // Every album is on screen; swap two tiles showing different art
+            // so motion continues without introducing a duplicate.
+            guard tileLayers.count >= 2 else { return }
+            for _ in 0..<8 {
+                let i = Int.random(in: 0..<tileLayers.count)
+                let j = Int.random(in: 0..<tileLayers.count)
+                guard i != j, tileAlbumIDs[i] != tileAlbumIDs[j] else { continue }
+                let (idI, idJ) = (tileAlbumIDs[i], tileAlbumIDs[j])
+                guard let imageI = images[idI], let imageJ = images[idJ] else { return }
+                crossfade(tileIndex: i, to: idJ, image: imageJ)
+                crossfade(tileIndex: j, to: idI, image: imageI)
+                return
+            }
+        }
+    }
 
-        let tile = tileLayers[index]
+    private func crossfade(tileIndex: Int, to albumID: String, image: NSImage) {
+        let tile = tileLayers[tileIndex]
         let transition = CATransition()
         transition.type = .fade
         transition.duration = 0.8
         tile.add(transition, forKey: "flip")
-        tile.contents = newImage
-        tileAlbumIDs[index] = newID
-
-        if showLabels, let album = albums.first(where: { $0.albumID == newID }) {
-            showLabel("\(album.artist) — \(album.title)")
-        }
+        tile.contents = image
+        tileAlbumIDs[tileIndex] = albumID
     }
 
     private func showLabel(_ text: String) {

@@ -37,6 +37,14 @@ final class SharedSettingsTests: XCTestCase {
         XCTAssertEqual(settings.flipInterval, 2)
     }
 
+    func testTileWidthsShrinkGridSensibly() {
+        XCTAssertEqual(TileDensity.large.approximateTileWidth, 280)
+        XCTAssertLessThan(TileDensity.small.approximateTileWidth,
+                          TileDensity.medium.approximateTileWidth)
+        XCTAssertLessThan(TileDensity.medium.approximateTileWidth,
+                          TileDensity.large.approximateTileWidth)
+    }
+
     func testPathsExist() {
         XCTAssertTrue(FileManager.default.fileExists(atPath: SharedPaths.imagesDirectory.path))
         XCTAssertEqual(SharedPaths.manifestURL.lastPathComponent, "manifest.json")
