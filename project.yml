@@ -1,0 +1,87 @@
+name: Coverwall
+options:
+  bundleIdPrefix: com.chadjuettner
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  CoverwallShared:
+    path: CoverwallShared
+targets:
+  CoverwallPreview:
+    type: application
+    platform: macOS
+    sources: [Preview]
+    dependencies:
+      - package: CoverwallShared
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.chadjuettner.coverwall.preview
+        CURRENT_PROJECT_VERSION: 1
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "-"
+  CoverwallSaver:
+    type: bundle
+    platform: macOS
+    sources: [Saver]
+    dependencies:
+      - package: CoverwallShared
+    info:
+      path: Saver/Info.plist
+      properties:
+        NSPrincipalClass: CoverwallSaverView
+        CFBundleName: Coverwall
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+    entitlements:
+      path: Saver/Saver.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.chadjuettner.coverwall
+    settings:
+      base:
+        WRAPPER_EXTENSION: saver
+        PRODUCT_NAME: Coverwall
+        PRODUCT_BUNDLE_IDENTIFIER: com.chadjuettner.coverwall.saver
+        CURRENT_PROJECT_VERSION: 1
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "-"
+  Coverwall:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - package: CoverwallShared
+      - target: CoverwallSaver
+        embed: true
+        codeSign: true
+        copy:
+          destination: resources
+    info:
+      path: App/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleDisplayName: Coverwall
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: com.chadjuettner.coverwall.oauth
+            CFBundleURLSchemes: [coverwall]
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.chadjuettner.coverwall
+    settings:
+      base:
+        PRODUCT_NAME: Coverwall
+        PRODUCT_BUNDLE_IDENTIFIER: com.chadjuettner.coverwall
+        PRODUCT_MODULE_NAME: CoverwallApp
+        CURRENT_PROJECT_VERSION: 1
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "-"
+          CODE_SIGN_STYLE: Manual
+          PROVISIONING_PROFILE_SPECIFIER: ""
+          CODE_SIGNING_REQUIRED: NO
+          CODE_SIGNING_ALLOWED: NO

@@ -9,3 +9,7 @@ build/
 DerivedData/
 xcuserdata/
 *.xcuserstate
+Coverwall.xcodeproj/
+
+# Swift Package Manager
+.build/
