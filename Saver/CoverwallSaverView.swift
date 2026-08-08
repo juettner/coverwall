@@ -67,7 +67,10 @@ public final class CoverwallSaverView: ScreenSaverView {
     }
 
     public override var hasConfigureSheet: Bool { true }
-    public override var configureSheet: NSWindow? { sheet.window }
+    public override var configureSheet: NSWindow? {
+        sheet.refresh()
+        return sheet.window
+    }
 }
 
 final class ConfigSheetController {
@@ -77,40 +80,91 @@ final class ConfigSheetController {
     private let densityPopup = NSPopUpButton()
     private let intervalSlider = NSSlider(value: 4, minValue: 2, maxValue: 15,
                                           target: nil, action: nil)
-    private let labelsCheckbox = NSButton(checkboxWithTitle: "Show artist/title on flip",
+    private let intervalValueLabel = NSTextField(labelWithString: "")
+    private let labelsCheckbox = NSButton(checkboxWithTitle: "Show artist and title when a tile flips",
                                           target: nil, action: nil)
 
+    private static let densityTitles: [(TileDensity, String)] =
+        [(.small, "Small"), (.medium, "Medium"), (.large, "Large")]
+
     init() {
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 200),
-                          styleMask: [.titled], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: .zero, styleMask: [.titled],
+                          backing: .buffered, defer: false)
 
-        densityPopup.addItems(withTitles: TileDensity.allCases.map(\.rawValue))
-        densityPopup.selectItem(withTitle: settings.tileDensity.rawValue)
-        intervalSlider.doubleValue = settings.flipInterval
-        labelsCheckbox.state = settings.showLabels ? .on : .off
+        densityPopup.addItems(withTitles: Self.densityTitles.map(\.1))
 
-        let openButton = NSButton(title: "Open Coverwall Settings",
+        intervalSlider.target = self
+        intervalSlider.action = #selector(intervalChanged)
+        intervalSlider.allowsTickMarkValuesOnly = true
+        intervalSlider.numberOfTickMarks = 27  // 2...15 in 0.5s steps
+        intervalSlider.widthAnchor.constraint(equalToConstant: 180).isActive = true
+        intervalValueLabel.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize,
+                                                             weight: .regular)
+        intervalValueLabel.textColor = .secondaryLabelColor
+        intervalValueLabel.alignment = .right
+        intervalValueLabel.widthAnchor.constraint(equalToConstant: 44).isActive = true
+
+        let sliderRow = NSStackView(views: [intervalSlider, intervalValueLabel])
+        sliderRow.spacing = 8
+
+        let grid = NSGridView(views: [
+            [label("Tile size:"), densityPopup],
+            [label("Flip every:"), sliderRow],
+            [NSGridCell.emptyContentView, labelsCheckbox],
+        ])
+        grid.rowSpacing = 10
+        grid.column(at: 0).xPlacement = .trailing
+
+        let openButton = NSButton(title: "Open Coverwall Settings…",
                                   target: self, action: #selector(openHelper))
+        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        cancelButton.keyEquivalent = "\u{1b}"
         let okButton = NSButton(title: "OK", target: self, action: #selector(done))
         okButton.keyEquivalent = "\r"
 
-        let grid = NSStackView(views: [
-            labeledRow("Tile size", densityPopup),
-            labeledRow("Flip every (s)", intervalSlider),
-            labelsCheckbox,
-            NSStackView(views: [openButton, okButton]),
-        ])
-        grid.orientation = .vertical
-        grid.alignment = .leading
-        grid.spacing = 12
-        grid.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        window.contentView = grid
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let buttonRow = NSStackView(views: [openButton, spacer, cancelButton, okButton])
+        buttonRow.spacing = 8
+
+        let content = NSStackView(views: [grid, buttonRow])
+        content.orientation = .vertical
+        content.alignment = .leading
+        content.spacing = 16
+        content.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 16, right: 20)
+        buttonRow.widthAnchor.constraint(equalTo: content.widthAnchor,
+                                         constant: -40).isActive = true
+
+        window.contentView = content
+        refresh()
+        window.setContentSize(content.fittingSize)
     }
 
-    private func labeledRow(_ title: String, _ control: NSView) -> NSStackView {
-        let label = NSTextField(labelWithString: title)
-        control.widthAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
-        return NSStackView(views: [label, control])
+    /// Re-syncs controls from SharedSettings; called every time the sheet is
+    /// requested so a reopened sheet never shows stale values.
+    func refresh() {
+        let density = settings.tileDensity
+        if let index = Self.densityTitles.firstIndex(where: { $0.0 == density }) {
+            densityPopup.selectItem(at: index)
+        }
+        intervalSlider.doubleValue = settings.flipInterval
+        labelsCheckbox.state = settings.showLabels ? .on : .off
+        updateIntervalLabel()
+    }
+
+    private func label(_ text: String) -> NSTextField {
+        NSTextField(labelWithString: text)
+    }
+
+    @objc private func intervalChanged() {
+        updateIntervalLabel()
+    }
+
+    private func updateIntervalLabel() {
+        let value = intervalSlider.doubleValue
+        intervalValueLabel.stringValue = value == value.rounded()
+            ? "\(Int(value)) s"
+            : String(format: "%.1f s", value)
     }
 
     @objc private func openHelper() {
@@ -120,10 +174,14 @@ final class ConfigSheetController {
         NSWorkspace.shared.open(URL(string: "coverwall://settings")!)
     }
 
+    @objc private func cancel() {
+        window.sheetParent?.endSheet(window)
+    }
+
     @objc private func done() {
-        if let title = densityPopup.titleOfSelectedItem,
-           let density = TileDensity(rawValue: title) {
-            settings.tileDensity = density
+        let index = densityPopup.indexOfSelectedItem
+        if Self.densityTitles.indices.contains(index) {
+            settings.tileDensity = Self.densityTitles[index].0
         }
         settings.flipInterval = intervalSlider.doubleValue
         settings.showLabels = labelsCheckbox.state == .on
