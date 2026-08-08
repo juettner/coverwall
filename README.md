@@ -67,17 +67,6 @@ From the menu bar (**Settings…**) or the screensaver's **Options…** sheet:
 The grid never shows the same album twice unless you have fewer albums than
 tiles, and flips only bring in albums that aren't already on screen.
 
-## Why the starter wall isn't live charts
-
-Spotify removed chart, editorial-playlist, and browse endpoints for new API
-apps ([Nov 2024](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api),
-[Feb 2026](https://developer.spotify.com/documentation/web-api/references/changes/february-2026)),
-so there is no sanctioned way to fetch "today's global top 50" without a
-logged-in user — and none even with one. Instead, each Coverwall release
-bakes in a snapshot of the global daily chart and fetches those covers at
-runtime through Spotify's public oEmbed API. Once you connect your account,
-the wall is yours.
-
 ## Building from source
 
 Requirements: Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
@@ -101,11 +90,3 @@ open Coverwall.xcodeproj
 | `Coverwall` | Menu-bar helper app |
 | `CoverwallSaver` | The `.saver` bundle |
 | `CoverwallPreview` | Dev harness that runs the mosaic in a window |
-
-## Acknowledgements
-
-Album artwork is fetched from Spotify and displayed with artist and album
-attribution. Coverwall is an independent project and is not affiliated with
-or endorsed by Spotify. The shared-container approach for sandboxed
-screensavers follows the pattern pioneered by
-[Aerial](https://github.com/JohnCoates/Aerial).
