@@ -1,9 +1,9 @@
 import Foundation
 
 public enum SpotifyConfig {
-    /// Paste the Client ID from https://developer.spotify.com/dashboard.
+    /// Client ID from https://developer.spotify.com/dashboard.
     /// PKCE apps have no secret; the ID is public by design.
-    public static var clientID = "MISSING_CLIENT_ID"
+    public static var clientID = "762db0dbb98448faa79031fab61c0b07"
 
     public static let redirectURI = "coverwall://callback"
     public static let scopes = "user-read-recently-played user-top-read user-library-read"
