@@ -1,39 +1,132 @@
 # Coverwall
 
-A macOS screensaver that fills your screen with a grid mosaic of album art
-from your Spotify listening. A menu-bar helper app handles Spotify login and
-keeps the art fresh; the screensaver itself is fully offline.
+A macOS screensaver that fills your screen with a wall of album art from your
+Spotify listening. Every few seconds a tile crossfades to another album —
+your recent plays, your top tracks, or your Liked Songs.
 
-## Development
+![The Coverwall mosaic](docs/images/mosaic.jpg)
 
-- Core logic + tests: `cd CoverwallShared && swift test`
-- App/saver targets: `xcodegen && open Coverwall.xcodeproj`
+*The mosaic, as rendered by the screensaver. Before you connect Spotify it
+shows a snapshot of the global charts; after, it's all you.*
 
-See `docs/superpowers/specs/` for the design and `docs/superpowers/plans/`
-for the implementation plan.
+## How it works
 
-## Release
+Coverwall is two pieces that share one local cache:
+
+- **Coverwall.app** — a small menu-bar helper. It handles the Spotify login
+  (OAuth with PKCE — no passwords, no secrets), refreshes your art on a
+  schedule (every 15 minutes for recent plays), and installs the screensaver
+  for you. Tokens live in the macOS Keychain.
+- **Coverwall.saver** — the actual screensaver. It is fully offline: it only
+  reads the cached images the helper wrote, so it never blocks, never phones
+  home, and keeps working (with slightly stale art) when you're offline.
+
+Nothing ever leaves your Mac — there's no backend, no analytics, and no
+data collection. Album art is cached locally (capped at 200 covers) purely
+for display.
+
+## Install
+
+### Homebrew
+
+```sh
+brew install juettner/coverwall/coverwall
+```
+
+### Manual
+
+Download `Coverwall.dmg` from the
+[latest release](https://github.com/juettner/coverwall/releases), open it,
+and drag **Coverwall** to Applications.
+
+### First run
+
+1. Open **Coverwall.app**. It installs the screensaver and appears in your
+   menu bar (grid icon). You'll immediately get the global-charts starter
+   wall.
+2. Click the menu-bar icon → **Connect Spotify…** and approve access.
+   Coverwall asks only for read access to your listening history and
+   library — it can't control playback or change anything.
+3. Open **System Settings › Screen Saver** and choose **Coverwall**.
+
+> **Heads up:** while Coverwall's Spotify app is in development mode, logins
+> are limited to invited accounts. Open an issue with your Spotify email if
+> you'd like access.
+
+## Settings
+
+From the menu bar (**Settings…**) or the screensaver's **Options…** sheet:
+
+| Setting | Choices | Default |
+|---|---|---|
+| Art source | Recently played · Top tracks (4 weeks / 6 months / all time) · Liked Songs | Recently played |
+| Tile size | Small · Medium · Large | Medium |
+| Flip speed | Every 2–15 seconds | 4 s |
+| Track labels | Show artist and title when a tile flips | Off |
+
+The grid never shows the same album twice unless you have fewer albums than
+tiles, and flips only bring in albums that aren't already on screen.
+
+## Why the starter wall isn't live charts
+
+Spotify removed chart, editorial-playlist, and browse endpoints for new API
+apps ([Nov 2024](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api),
+[Feb 2026](https://developer.spotify.com/documentation/web-api/references/changes/february-2026)),
+so there is no sanctioned way to fetch "today's global top 50" without a
+logged-in user — and none even with one. Instead, each Coverwall release
+bakes in a snapshot of the global daily chart and fetches those covers at
+runtime through Spotify's public oEmbed API. Once you connect your account,
+the wall is yours.
+
+## Building from source
+
+Requirements: Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`).
+
+```sh
+git clone https://github.com/juettner/coverwall.git
+cd coverwall
+
+# Core logic + tests (45 unit tests, no simulator needed)
+cd CoverwallShared && swift test && cd ..
+
+# Generate the Xcode project and build the apps
+xcodegen
+open Coverwall.xcodeproj
+```
+
+| Target | What it is |
+|---|---|
+| `CoverwallShared` | Swift package: Spotify client, PKCE, cache, manifest, mosaic view — all the logic, all the tests |
+| `Coverwall` | Menu-bar helper app |
+| `CoverwallSaver` | The `.saver` bundle |
+| `CoverwallPreview` | Dev harness that runs the mosaic in a window |
+
+To use your own Spotify credentials, create an app at
+[developer.spotify.com](https://developer.spotify.com/dashboard) with
+redirect URI `coverwall://callback` and put its Client ID in
+`CoverwallShared/Sources/CoverwallShared/SpotifyConfig.swift`.
+
+## Releasing
 
 One-time setup: `xcrun notarytool store-credentials coverwall-notary` with an
 App Store Connect API key, then:
 
-    export CW_TEAM_ID=XXXXXXXXXX
-    export CW_SIGN_IDENTITY="Developer ID Application: Chad Juettner (XXXXXXXXXX)"
-    export CW_NOTARY_PROFILE=coverwall-notary
-    ./scripts/release.sh
+```sh
+export CW_TEAM_ID=XXXXXXXXXX
+export CW_SIGN_IDENTITY="Developer ID Application: Your Name (XXXXXXXXXX)"
+export CW_NOTARY_PROFILE=coverwall-notary
+./scripts/publish.sh 1.0.0
+```
 
-Output: `dist/Coverwall.dmg` (signed, notarized, stapled).
+`publish.sh` builds a signed, notarized DMG, creates the GitHub release, and
+bumps the [Homebrew tap](https://github.com/juettner/homebrew-coverwall).
+(`scripts/release.sh` does just the DMG, no publishing.)
 
-Distribution checklist: Spotify extended-quota review approved (users beyond
-the 25-user dev allowlist), DMG smoke-tested on a clean machine.
+## Acknowledgements
 
-## Homebrew
-
-Once a release is published:
-
-    brew install juettner/coverwall/coverwall
-
-Publishing a release (builds, signs, notarizes, creates the GitHub release,
-and bumps the [tap](https://github.com/juettner/homebrew-coverwall)):
-
-    ./scripts/publish.sh 1.0.0
+Album artwork is fetched from Spotify and displayed with artist and album
+attribution. Coverwall is an independent project and is not affiliated with
+or endorsed by Spotify. The shared-container approach for sandboxed
+screensavers follows the pattern pioneered by
+[Aerial](https://github.com/JohnCoates/Aerial).
