@@ -33,11 +33,6 @@ targets:
         NSPrincipalClass: CoverwallSaverView
         CFBundleName: Coverwall
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-    entitlements:
-      path: Saver/Saver.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.com.chadjuettner.coverwall
     settings:
       base:
         WRAPPER_EXTENSION: saver
@@ -67,11 +62,6 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.chadjuettner.coverwall.oauth
             CFBundleURLSchemes: [coverwall]
-    entitlements:
-      path: App/App.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.com.chadjuettner.coverwall
     settings:
       base:
         PRODUCT_NAME: Coverwall
