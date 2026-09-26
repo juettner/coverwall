@@ -17,3 +17,9 @@ Coverwall.xcodeproj/
 # Release artifacts
 dist/
 scripts/release.env
+
+# Maintainer-only artifacts (kept local, not part of the public product repo)
+docs/RELEASING.md
+docs/superpowers/
+scripts/release.sh
+scripts/publish.sh
