@@ -67,4 +67,23 @@ public struct SharedSettings {
         get { defaults.bool(forKey: "showLabels") }
         nonmutating set { defaults.set(newValue, forKey: "showLabels") }
     }
+
+    /// A user-supplied Spotify Client ID ("bring your own app"), which lifts
+    /// Spotify's per-app development-mode user cap: each user owns their own
+    /// allowlist-of-one. nil/blank means use the built-in app.
+    public var customClientID: String? {
+        get {
+            let raw = defaults.string(forKey: "customClientID")?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return raw.isEmpty ? nil : raw
+        }
+        nonmutating set {
+            let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if trimmed.isEmpty {
+                defaults.removeObject(forKey: "customClientID")
+            } else {
+                defaults.set(trimmed, forKey: "customClientID")
+            }
+        }
+    }
 }

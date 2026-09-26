@@ -67,6 +67,25 @@ From the menu bar (**Settings…**) or the screensaver's **Options…** sheet:
 The grid never shows the same album twice unless you have fewer albums than
 tiles, and flips only bring in albums that aren't already on screen.
 
+## Connecting without an invite (use your own Spotify app)
+
+Spotify limits development-mode apps like Coverwall's to a handful of
+invited accounts. If you're not on the invite list, you can connect anyway
+by using your own (free) Spotify app — you become the owner of your own
+access:
+
+1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard),
+   log in, and click **Create app**. Name it anything, and set the
+   **Redirect URI** to exactly `coverwall://callback`. Check **Web API**.
+2. Copy the app's **Client ID** from its settings page.
+3. In Coverwall's menu bar icon → **Settings…**, paste it into
+   **Spotify Client ID** and press Return, then **Connect Spotify…**.
+
+Notes: Spotify requires the account that owns a developer app to have
+**Spotify Premium**, and you may create only one app per account under
+current Spotify policy. Leave the field empty to go back to the built-in
+app.
+
 ## Building from source
 
 Requirements: Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen)

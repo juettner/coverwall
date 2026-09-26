@@ -8,6 +8,19 @@ struct SettingsView: View {
     @State private var density: TileDensity = .medium
     @State private var flipInterval = 4.0
     @State private var showLabels = false
+    @State private var customClientID = ""
+
+    // Tokens are issued per client, so switching the Client ID invalidates
+    // the session: persist, disconnect, and let the user reconnect under
+    // the new app.
+    private func applyClientID() {
+        let trimmed = customClientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newValue = trimmed.isEmpty ? nil : trimmed
+        guard newValue != model.settings.customClientID else { return }
+        model.settings.customClientID = newValue
+        customClientID = newValue ?? ""
+        model.disconnect()
+    }
 
     var body: some View {
         Form {
@@ -32,6 +45,21 @@ struct SettingsView: View {
                 Text("Flip every \(flipInterval, specifier: "%.1f")s")
             }
             Toggle("Show artist/title on flip", isOn: $showLabels)
+
+            Divider()
+
+            LabeledContent("Spotify Client ID") {
+                VStack(alignment: .trailing, spacing: 4) {
+                    TextField("built-in", text: $customClientID)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        .onSubmit(applyClientID)
+                    Text("Advanced: use your own Spotify app to skip the invite list. Press Return to apply — you'll need to reconnect.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
         }
         .padding(20)
         .frame(width: 380)
@@ -41,6 +69,7 @@ struct SettingsView: View {
             density = model.settings.tileDensity
             flipInterval = model.settings.flipInterval
             showLabels = model.settings.showLabels
+            customClientID = model.settings.customClientID ?? ""
         }
         .onChange(of: artSource) { _, v in
             model.settings.artSource = v
@@ -54,5 +83,6 @@ struct SettingsView: View {
         .onChange(of: density) { _, v in model.settings.tileDensity = v }
         .onChange(of: flipInterval) { _, v in model.settings.flipInterval = v }
         .onChange(of: showLabels) { _, v in model.settings.showLabels = v }
+        .onDisappear(perform: applyClientID)
     }
 }

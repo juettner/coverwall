@@ -37,6 +37,23 @@ final class SharedSettingsTests: XCTestCase {
         XCTAssertEqual(settings.flipInterval, 2)
     }
 
+    func testCustomClientIDRoundTripAndNormalization() {
+        XCTAssertNil(settings.customClientID)
+        settings.customClientID = "  abc123DEF  "
+        XCTAssertEqual(settings.customClientID, "abc123DEF")
+        settings.customClientID = "   "
+        XCTAssertNil(settings.customClientID)
+        settings.customClientID = "xyz"
+        settings.customClientID = nil
+        XCTAssertNil(settings.customClientID)
+    }
+
+    func testClientIDResolution() {
+        XCTAssertEqual(SpotifyConfig.resolveClientID(custom: nil), SpotifyConfig.defaultClientID)
+        XCTAssertEqual(SpotifyConfig.resolveClientID(custom: ""), SpotifyConfig.defaultClientID)
+        XCTAssertEqual(SpotifyConfig.resolveClientID(custom: "myOwnID"), "myOwnID")
+    }
+
     func testTileWidthsShrinkGridSensibly() {
         XCTAssertEqual(TileDensity.large.approximateTileWidth, 280)
         XCTAssertLessThan(TileDensity.small.approximateTileWidth,
