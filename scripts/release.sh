@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# Optional local config: scripts/release.env (git-ignored) can export the
+# CW_* variables so they don't need to be set per shell.
+if [[ -f "$(dirname "$0")/release.env" ]]; then
+  # shellcheck source=/dev/null
+  source "$(dirname "$0")/release.env"
+fi
+
 : "${CW_TEAM_ID:?Set CW_TEAM_ID to your Apple Developer Team ID}"
 : "${CW_SIGN_IDENTITY:?Set CW_SIGN_IDENTITY to your Developer ID Application identity}"
 : "${CW_NOTARY_PROFILE:?Set CW_NOTARY_PROFILE to your notarytool keychain profile name}"

@@ -16,3 +16,4 @@ Coverwall.xcodeproj/
 
 # Release artifacts
 dist/
+scripts/release.env
