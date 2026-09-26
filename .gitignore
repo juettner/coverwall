@@ -13,3 +13,6 @@ Coverwall.xcodeproj/
 
 # Swift Package Manager
 .build/
+
+# Release artifacts
+dist/
