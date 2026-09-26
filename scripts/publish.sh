@@ -20,6 +20,15 @@ cd "$(dirname "$0")/.."
 [[ -f "$CASK" ]] || { echo "error: cask not found at $CASK (set CW_TAP_DIR)" >&2; exit 1; }
 git rev-parse "v$VERSION" >/dev/null 2>&1 && { echo "error: tag v$VERSION already exists" >&2; exit 1; }
 
+# The repo lives under the personal account; pushing/releasing with a work
+# account active fails halfway. Check before doing anything irreversible.
+GH_LOGIN=$(gh api user -q .login 2>/dev/null || echo "")
+[[ "$GH_LOGIN" == "juettner" ]] || {
+  echo "error: gh active account is '${GH_LOGIN:-none}', need 'juettner'." >&2
+  echo "       Run: gh auth switch --user juettner" >&2
+  exit 1
+}
+
 ./scripts/release.sh
 
 git tag -a "v$VERSION" -m "Coverwall $VERSION"
