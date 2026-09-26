@@ -20,6 +20,7 @@ xcodebuild -project Coverwall.xcodeproj -scheme Coverwall -configuration Release
   DEVELOPMENT_TEAM="$CW_TEAM_ID" \
   CODE_SIGN_IDENTITY="$CW_SIGN_IDENTITY" \
   CODE_SIGN_STYLE=Manual \
+  CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
   OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime" \
   CONFIGURATION_BUILD_DIR="$PWD/build/Release-export" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
