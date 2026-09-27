@@ -23,3 +23,9 @@ docs/RELEASING.md
 docs/superpowers/
 scripts/release.sh
 scripts/publish.sh
+
+# .NET build output
+windows/dist/
+windows/publish/
+**/bin/
+**/obj/

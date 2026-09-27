@@ -86,6 +86,15 @@ Notes: Spotify requires the account that owns a developer app to have
 current Spotify policy. Leave the field empty to go back to the built-in
 app.
 
+## Windows (experimental)
+
+A Windows sibling lives in [`windows/`](windows/): a tray app that watches
+the system "now playing" info (no Spotify login needed — Windows even
+supplies the album art locally) plus a `.scr` screensaver rendering the
+same no-duplicates mosaic. Build with `windows/build.sh` (works from
+macOS via .NET cross-compilation); tester instructions in
+[`windows/TESTING.md`](windows/TESTING.md).
+
 ## Building from source
 
 Requirements: Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
