@@ -11,7 +11,6 @@ struct CoverwallApp: App {
             Text(model.statusLine)
             Divider()
             Button("Refresh Now") { Task { await model.refreshNow() } }
-                .disabled(!model.isConnected)
             SettingsMenuButton()
             if model.isConnected {
                 Button("Disconnect Spotify") { model.disconnect() }
@@ -42,8 +41,11 @@ private struct SettingsMenuButton: View {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let localPlaysObserver = LocalPlaysObserver()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         SaverInstaller.installIfNeeded()
+        localPlaysObserver.start()
         AppModel.shared.startScheduler()
         AppModel.shared.registerLoginItem()
         registerURLHandler()

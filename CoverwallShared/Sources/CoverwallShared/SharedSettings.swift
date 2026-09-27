@@ -2,6 +2,9 @@ import Foundation
 
 public enum ArtSource: String, Codable, CaseIterable {
     case recentlyPlayed, topTracks, likedSongs
+    /// Plays observed from the Spotify desktop app on this Mac — needs no
+    /// login, so it works for users outside the app's Spotify allowlist.
+    case localPlays
     /// Pre-login curated chart snapshot; never user-selectable, appears only
     /// as a Manifest.source written by the starter-art path.
     case starter

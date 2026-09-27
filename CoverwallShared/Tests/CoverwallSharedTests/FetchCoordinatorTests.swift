@@ -50,6 +50,8 @@ final class FetchCoordinatorTests: XCTestCase {
     private var coordinator: FetchCoordinator!
     private var manifests: ManifestStore!
     private var starter: StubStarter!
+    private var localPlays: LocalPlaysStore!
+    private var settingsHandle: SharedSettings!
 
     override func setUp() {
         super.setUp()
@@ -64,11 +66,14 @@ final class FetchCoordinatorTests: XCTestCase {
         let suite = UserDefaults(suiteName: "test.coverwall.fetch")!
         suite.removePersistentDomain(forName: "test.coverwall.fetch")
         starter = StubStarter()
+        localPlays = LocalPlaysStore(url: dir.appendingPathComponent("local-plays.json"))
+        settingsHandle = SharedSettings(defaults: suite)
         coordinator = FetchCoordinator(client: client, tokens: tokens,
                                        cache: CacheStore(directory: cacheDir),
                                        manifests: manifests,
-                                       settings: SharedSettings(defaults: suite),
-                                       starter: starter)
+                                       settings: settingsHandle,
+                                       starter: starter,
+                                       localPlays: localPlays)
     }
 
     override func tearDown() {
@@ -184,5 +189,45 @@ final class FetchCoordinatorTests: XCTestCase {
         let outcome = await coordinator.refresh()
         XCTAssertEqual(outcome, .notLoggedIn)
         XCTAssertNil(manifests.read())
+    }
+
+    // MARK: - Local plays
+
+    private func seedLocalPlays(_ albums: Int, tracksPerAlbum: Int = 1) {
+        for a in 0..<albums {
+            for t in 0..<tracksPerAlbum {
+                let id = "tr\(a)x\(t)"
+                localPlays.record(LocalPlay(trackID: id, title: "T\(id)", artist: "Artist \(a)",
+                                            album: "Album \(a)",
+                                            playedAt: Date(timeIntervalSince1970: Double(a * 100 + t))))
+                starter.covers[id] = URL(string: "https://img/album\(a)")!
+            }
+        }
+    }
+
+    func testLocalPlaysSourceBuildsManifestWithoutLogin() async {
+        settingsHandle.artSource = .localPlays
+        seedLocalPlays(3, tracksPerAlbum: 2)
+        let outcome = await coordinator.refresh()
+        XCTAssertEqual(outcome, .updated(albumCount: 3))
+        let manifest = manifests.read()
+        XCTAssertEqual(manifest?.source, .localPlays)
+        XCTAssertEqual(manifest?.albums.count, 3)  // deduped by album
+        XCTAssertEqual(manifest?.albums.first?.artist, "Artist 2")  // newest first
+    }
+
+    func testNotLoggedInPrefersLocalPlaysOverStarterWhenEnough() async {
+        seedLocalPlays(12)
+        let outcome = await coordinator.refresh()
+        XCTAssertEqual(outcome, .updated(albumCount: 12))
+        XCTAssertEqual(manifests.read()?.source, .localPlays)
+    }
+
+    func testNotLoggedInUsesStarterWhenLocalPlaysAreSparse() async {
+        seedLocalPlays(3)
+        starter.covers[StarterSet.tracks[0].trackID] = URL(string: "https://img/starter")!
+        let outcome = await coordinator.refresh()
+        XCTAssertEqual(outcome, .starter(albumCount: 1))
+        XCTAssertEqual(manifests.read()?.source, .starter)
     }
 }

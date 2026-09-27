@@ -33,20 +33,30 @@ public struct FetchCoordinator {
     private let manifests: ManifestStore
     private let settings: SharedSettings
     private let starter: StarterArtFetching
+    private let localPlays: LocalPlaysStore
+
+    /// Distinct locally-observed albums needed before logged-out refreshes
+    /// prefer them over the generic starter wall.
+    public static let localPlaysAlbumThreshold = 12
 
     public init(client: SpotifyFetching, tokens: TokenStoring, cache: CacheStore,
                 manifests: ManifestStore, settings: SharedSettings,
-                starter: StarterArtFetching = StarterArtClient()) {
+                starter: StarterArtFetching = StarterArtClient(),
+                localPlays: LocalPlaysStore = LocalPlaysStore()) {
         self.client = client
         self.tokens = tokens
         self.cache = cache
         self.manifests = manifests
         self.settings = settings
         self.starter = starter
+        self.localPlays = localPlays
     }
 
     public func refresh() async -> RefreshOutcome {
-        guard var tokenSet = tokens.load() else { return await refreshStarterIfNeeded() }
+        if settings.artSource == .localPlays {
+            return await refreshFromLocalPlays()
+        }
+        guard var tokenSet = tokens.load() else { return await refreshWhileLoggedOut() }
         do {
             if tokenSet.isExpired {
                 do {
@@ -67,8 +77,9 @@ public struct FetchCoordinator {
                                                   accessToken: tokenSet.accessToken)
             case .likedSongs:
                 refs = try await client.likedSongs(accessToken: tokenSet.accessToken, pages: 4)
-            case .starter:
-                // Never a user-selectable setting; treat defensively as the default.
+            case .localPlays, .starter:
+                // .localPlays is handled before the token check; .starter is
+                // never user-selectable. Treat both defensively as the default.
                 refs = try await client.recentlyPlayed(accessToken: tokenSet.accessToken)
             }
 
@@ -93,6 +104,51 @@ public struct FetchCoordinator {
         } catch {
             return .failed(String(describing: error))
         }
+    }
+
+    /// Logged out: prefer the user's own observed plays once enough distinct
+    /// albums have accumulated — the wall personalizes itself without any
+    /// Spotify login. Otherwise fall back to the starter chart snapshot.
+    private func refreshWhileLoggedOut() async -> RefreshOutcome {
+        if localPlays.distinctAlbumCount() >= Self.localPlaysAlbumThreshold {
+            let outcome = await refreshFromLocalPlays()
+            if case .updated = outcome { return outcome }
+        }
+        return await refreshStarterIfNeeded()
+    }
+
+    /// Builds the manifest from plays observed off the Spotify desktop app
+    /// (newest first, deduped by album), with covers fetched through the
+    /// public oEmbed endpoint. Needs no login.
+    private func refreshFromLocalPlays() async -> RefreshOutcome {
+        var seenAlbums = Set<String>()
+        var seenCovers = Set<URL>()
+        var albums: [AlbumArt] = []
+        for play in localPlays.recentPlays() {
+            let key = localPlays.albumKey(artist: play.artist, album: play.album)
+            guard seenAlbums.insert(key).inserted else { continue }
+            let albumID = localPlays.stableAlbumID(forKey: key)
+            if !cache.contains(albumID: albumID) {
+                guard let coverURL = try? await starter.coverURL(forTrackID: play.trackID),
+                      seenCovers.insert(coverURL).inserted,
+                      let data = try? await starter.downloadImage(at: coverURL),
+                      (try? cache.store(data, albumID: albumID)) != nil else { continue }
+            }
+            albums.append(AlbumArt(albumID: albumID, title: play.album,
+                                   artist: play.artist,
+                                   imageFilename: cache.filename(forAlbumID: albumID),
+                                   addedAt: play.playedAt))
+            if albums.count >= 60 { break }
+        }
+        guard !albums.isEmpty else { return .failed("no local plays observed yet") }
+        do {
+            try manifests.write(Manifest(source: .localPlays, updatedAt: Date(),
+                                         albums: albums))
+        } catch {
+            return .failed(String(describing: error))
+        }
+        cache.prune(keeping: albums.map(\.albumID))
+        return .updated(albumCount: albums.count)
     }
 
     /// Pre-login: fill the screen with the baked-in global chart snapshot so

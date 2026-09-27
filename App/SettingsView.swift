@@ -28,6 +28,7 @@ struct SettingsView: View {
                 Text("Recently played").tag(ArtSource.recentlyPlayed)
                 Text("Top tracks").tag(ArtSource.topTracks)
                 Text("Liked Songs").tag(ArtSource.likedSongs)
+                Text("This Mac's plays (no login)").tag(ArtSource.localPlays)
             }
             if artSource == .topTracks {
                 Picker("Time range", selection: $range) {
