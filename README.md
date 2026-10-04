@@ -2,21 +2,23 @@
 
 A macOS screensaver that fills your screen with a wall of album art from your
 Spotify listening. Every few seconds a tile crossfades to another album —
-your recent plays, your top tracks, or your Liked Songs.
+what you play on this Mac, your recent plays, your top tracks, or your
+Liked Songs.
 
 ![The Coverwall mosaic](docs/images/mosaic.jpg)
 
-*The mosaic, as rendered by the screensaver. Before you connect Spotify it
-shows a snapshot of the global charts; after, it's all you.*
+*The mosaic, as rendered by the screensaver. Out of the box it shows a
+snapshot of the global charts; as you listen, it becomes yours.*
 
 ## How it works
 
 Coverwall is two pieces that share one local cache:
 
-- **Coverwall.app** — a small menu-bar helper. It handles the Spotify login
-  (OAuth with PKCE — no passwords, no secrets), refreshes your art on a
-  schedule (every 15 minutes for recent plays), and installs the screensaver
-  for you. Tokens live in the macOS Keychain.
+- **Coverwall.app** — a small menu-bar helper. It notices what the Spotify
+  desktop app plays (no login needed), optionally connects your Spotify
+  account for richer sources (OAuth with PKCE — no passwords, no secrets),
+  refreshes your art on a schedule, and installs the screensaver for you.
+  Tokens live in the macOS Keychain.
 - **Coverwall.saver** — the actual screensaver. It is fully offline: it only
   reads the cached images the helper wrote, so it never blocks, never phones
   home, and keeps working (with slightly stale art) when you're offline.
@@ -42,16 +44,22 @@ and drag **Coverwall** to Applications.
 ### First run
 
 1. Open **Coverwall.app**. It installs the screensaver and appears in your
-   menu bar (grid icon). You'll immediately get the global-charts starter
-   wall.
-2. Click the menu-bar icon → **Connect Spotify…** and approve access.
-   Coverwall asks only for read access to your listening history and
-   library — it can't control playback or change anything.
-3. Open **System Settings › Screen Saver** and choose **Coverwall**.
+   menu bar (grid icon). You start with a wall of current global chart art.
+2. Open **System Settings › Screen Saver** and choose **Coverwall**.
+3. That's it. Play music in the Spotify desktop app and the wall quietly
+   rebuilds itself from what *you* listen to — no account connection needed.
 
-> **Heads up:** while Coverwall's Spotify app is in development mode, logins
-> are limited to invited accounts. Open an issue with your Spotify email if
-> you'd like access.
+### Optional: connect your Spotify account
+
+Connecting unlocks richer sources — Recently played (from all your devices,
+not just this Mac), Top tracks over time, and Liked Songs. Click the
+menu-bar icon → **Connect Spotify…** and approve; Coverwall asks only for
+read access and can't control playback or change anything.
+
+> **Heads up:** Spotify restricts logins for independent apps to a small
+> invited list. If you're not on it, you can
+> [use your own free Spotify app](#connecting-without-an-invite-use-your-own-spotify-app) —
+> or skip connecting entirely; the local wall works for everyone.
 
 ## Settings
 
@@ -59,7 +67,7 @@ From the menu bar (**Settings…**) or the screensaver's **Options…** sheet:
 
 | Setting | Choices | Default |
 |---|---|---|
-| Art source | Recently played · Top tracks (4 weeks / 6 months / all time) · Liked Songs | Recently played |
+| Art source | This Mac's plays (no login) · Recently played · Top tracks (4 weeks / 6 months / all time) · Liked Songs | Recently played |
 | Tile size | Small · Medium · Large | Medium |
 | Flip speed | Every 2–15 seconds | 4 s |
 | Track labels | Show artist and title when a tile flips | Off |
@@ -104,7 +112,7 @@ Requirements: Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 git clone https://github.com/juettner/coverwall.git
 cd coverwall
 
-# Core logic + tests (45 unit tests, no simulator needed)
+# Core logic + tests (56 unit tests, no simulator needed)
 cd CoverwallShared && swift test && cd ..
 
 # Generate the Xcode project and build the apps
